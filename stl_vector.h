@@ -404,7 +404,12 @@ public:
   void insert (iterator __pos, size_type __n, const _Tp& __x)
     { _M_fill_insert(__pos, __n, __x); }
 
+  void expend_capacity_insert(iterator __pos, size_type __n, const _Tp& __x) {
+      expend_capacity_M_fill_insert(__pos, __n, __x);
+  }
+
   void _M_fill_insert (iterator __pos, size_type __n, const _Tp& __x);
+  void expend_capacity_M_fill_insert(ierator __pos, size_type __n, const _Tp& __x);
 
   void pop_back() {
     --_M_finish;
@@ -431,6 +436,16 @@ public:
       insert(end(), __new_size - size(), __x);
   }
   void resize(size_type __new_size) { resize(__new_size, _Tp()); }
+  /**
+    * author: mabraygas
+    * usage: expend vector's capacity and maintain its size()
+    *
+    */
+  void expend_capacity(size_type __new_size) {
+    if(__new_size < size())
+        erase(begin() + __new_size, end());
+    else expend_capacity_insert(end(), __new_size - size(), __x);
+  }
   void clear() { erase(begin(), end()); }
 
 protected:
@@ -732,6 +747,58 @@ void vector<_Tp, _Alloc>::_M_fill_insert(iterator __position, size_type __n,
       _M_deallocate(_M_start, _M_end_of_storage - _M_start);
       _M_start = __new_start;
       _M_finish = __new_finish;
+      _M_end_of_storage = __new_start + __len;
+    }
+  }
+}
+/**
+  * author: mabraygas
+  * usage: to expend vector's capacity and maintain size()
+  * date: 2014-12-01
+  */
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::expend_capacity_M_fill_insert(iterator __position, size_type __n, 
+                                         const _Tp& __x)
+{
+  if (__n != 0) {
+    /*
+    if (size_type(_M_end_of_storage - _M_finish) >= __n) {
+      _Tp __x_copy = __x;
+      const size_type __elems_after = _M_finish - __position;
+      iterator __old_finish = _M_finish;
+      if (__elems_after > __n) {
+        uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+        _M_finish += __n;
+        copy_backward(__position, __old_finish - __n, __old_finish);
+        fill(__position, __position + __n, __x_copy);
+      }
+      else {
+        uninitialized_fill_n(_M_finish, __n - __elems_after, __x_copy);
+        _M_finish += __n - __elems_after;
+        uninitialized_copy(__position, __old_finish, _M_finish);
+        _M_finish += __elems_after;
+        fill(__position, __old_finish, __x_copy);
+      }
+    }
+    */
+    if(size_type(_M_end_of_storage - _M_finish) < __n) {
+      const size_type __old_size = size();        
+      const size_type __len = __old_size + max(__old_size, __n);
+      iterator __new_start = _M_allocate(__len);
+      iterator __new_finish = __new_start;
+      __STL_TRY {
+        __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+        __new_finish = uninitialized_fill_n(__new_finish, __n, __x);
+        __new_finish
+          = uninitialized_copy(__position, _M_finish, __new_finish);
+      }
+      __STL_UNWIND((destroy(__new_start,__new_finish), 
+                    _M_deallocate(__new_start,__len)));
+      destroy(_M_start, _M_finish);
+      _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+      _M_start = __new_start;
+      //_M_finish = __new_finish;
+      _M_finish = __new_start + __old_size;
       _M_end_of_storage = __new_start + __len;
     }
   }
